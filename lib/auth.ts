@@ -22,7 +22,7 @@ export const auth = betterAuth({
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
         if (type === "forget-password") {
-          await resend.emails.send({
+          const { error } = await resend.emails.send({
             from: "onboarding@resend.dev",
             to: email,
             subject: "Kode OTP Reset Password",
@@ -37,6 +37,10 @@ export const auth = betterAuth({
               </div>
             `,
           });
+          if (error) {
+            console.error("Resend Error:", error);
+            throw new Error(error.message);
+          }
         }
       },
       otpLength: 6,
