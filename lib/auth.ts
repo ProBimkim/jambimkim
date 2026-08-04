@@ -11,7 +11,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     async sendResetPassword(data, request) {
       await resend.emails.send({
         from: "Acme <onboarding@resend.dev>",
@@ -22,7 +22,7 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-    sendOnSignUp: true,
+    sendOnSignUp: false,
     async sendVerificationEmail(data, request) {
       await resend.emails.send({
         from: "Acme <onboarding@resend.dev>",

@@ -159,10 +159,6 @@ export default function LoginPage() {
           name: newUserId || email.split("@")[0] 
         });
         if (res.error) throw new Error(res.error.message || "DB_ERR // REGISTRATION_FAILED");
-        setAlertType("warning");
-        setAlertMsg("REGISTRATION_SUCCESS // CHECK_EMAIL_TO_VERIFY");
-        setLoading(false);
-        return; // Don't redirect yet
       } else if (activeTab === "forgot-password") {
         const res = await authClient.requestPasswordReset({ 
           email, 
