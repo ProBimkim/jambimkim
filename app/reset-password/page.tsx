@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -13,16 +14,30 @@ export default function ResetPasswordPage() {
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState<"error" | "warning">("error");
 
-  useEffect(() => {
-    // Get email from query params
-    const params = new URLSearchParams(window.location.search);
-    const emailParam = params.get("email");
-    if (emailParam) {
-      setEmail(emailParam);
-    }
-  }, []);
+  const handleRequestOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setAlertMsg("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    try {
+      const res = await authClient.emailOtp.sendVerificationOtp({
+        email,
+        type: "forget-password",
+      });
+      if (res.error) throw new Error(res.error.message || "NETWORK_ERR // OTP_REQUEST_FAILED");
+      
+      setAlertType("warning");
+      setAlertMsg("OTP_SENT // CHECK_INBOX");
+      setStep(2);
+    } catch (err: any) {
+      setAlertType("error");
+      setAlertMsg(err.message || "UNKNOWN_SYSTEM_FAILURE");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setAlertMsg("");
@@ -42,7 +57,7 @@ export default function ResetPasswordPage() {
       }, 2000);
     } catch (err: any) {
       setAlertType("error");
-      setAlertMsg(err.message || "UNKNOWN_SYSTEM_FAILURE");
+      setAlertMsg(err.message || "INVALID_OR_EXPIRED_OTP");
       setLoading(false);
     }
   };
@@ -112,7 +127,7 @@ export default function ResetPasswordPage() {
       <div className="auth-widget w-full max-w-md p-8 flex flex-col gap-6">
         <div className="text-center">
           <h1 className="font-[Orbitron] text-3xl font-black tracking-widest mb-2" style={{ textShadow: '2px 0 var(--c-secondary), -2px 0 var(--c-primary)' }}>SYS.RESET</h1>
-          <p className="font-[Share_Tech_Mono] text-sm text-cyan-500 opacity-80 tracking-widest">&gt; VERIFY_OTP_AND_SET_KEY_</p>
+          <p className="font-[Share_Tech_Mono] text-sm text-cyan-500 opacity-80 tracking-widest">&gt; RECOVER_ACCESS_</p>
         </div>
 
         {alertMsg && (
@@ -121,58 +136,77 @@ export default function ResetPasswordPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 font-[Share_Tech_Mono]">
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-400 tracking-widest">
-              &gt; EMAIL
-            </label>
-            <input 
-              type="email" 
-              required 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="cyber-input p-3 text-lg w-full opacity-70" 
-              placeholder="user@domain.com"
-            />
-          </div>
+        {step === 1 ? (
+          <form onSubmit={handleRequestOTP} className="flex flex-col gap-5 font-[Share_Tech_Mono]">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-cyan-400 tracking-widest">
+                &gt; USER_EMAIL
+              </label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="cyber-input p-3 text-lg w-full" 
+                placeholder="user@domain.com"
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-400 tracking-widest">
-              &gt; OTP_CODE
-            </label>
-            <input 
-              type="text" 
-              required 
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="cyber-input p-3 text-lg w-full" 
-              placeholder="123456"
-              maxLength={6}
-            />
-          </div>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="cyber-btn font-[Orbitron] w-full p-4 mt-2 text-lg font-bold tracking-widest"
+            >
+              {loading ? "PROCESSING..." : "REQUEST OTP"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleResetPassword} className="flex flex-col gap-5 font-[Share_Tech_Mono]">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-cyan-400 tracking-widest">
+                &gt; OTP_CODE
+              </label>
+              <input 
+                type="text" 
+                required 
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="cyber-input p-3 text-lg w-full tracking-widest" 
+                placeholder="123456"
+                maxLength={6}
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-400 tracking-widest">
-              &gt; NEW_PASSWORD
-            </label>
-            <input 
-              type="password" 
-              required 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="cyber-input p-3 text-lg w-full" 
-              placeholder="••••••••"
-            />
-          </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-cyan-400 tracking-widest">
+                &gt; NEW_PASSWORD
+              </label>
+              <input 
+                type="password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="cyber-input p-3 text-lg w-full" 
+                placeholder="••••••••"
+              />
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="cyber-btn font-[Orbitron] w-full p-4 mt-2 text-lg font-bold tracking-widest"
-          >
-            {loading ? "PROCESSING..." : "UBAH PASSWORD"}
-          </button>
-        </form>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="cyber-btn font-[Orbitron] w-full p-4 mt-2 text-lg font-bold tracking-widest"
+            >
+              {loading ? "PROCESSING..." : "UBAH PASSWORD"}
+            </button>
+            <button 
+              type="button"
+              onClick={() => { setStep(1); setOtp(""); setPassword(""); }}
+              className="text-xs text-cyan-500 mt-2 hover:text-cyan-300 transition-colors"
+            >
+              &lt; KEMBALI
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

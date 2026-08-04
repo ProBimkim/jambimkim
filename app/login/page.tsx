@@ -18,6 +18,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [newUserId, setNewUserId] = useState("");
   
+  // OTP Recovery states
+  const [recoveryStep, setRecoveryStep] = useState<"email" | "otp">("email");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [newPassword, setNewPassword] = useState("");
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
   // Audio Refs
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -127,11 +133,50 @@ export default function LoginPage() {
     playSound("click");
     setActiveTab(tab);
     setAlertMsg("");
+    // Reset recovery state when switching tabs
+    if (tab !== "forgot-password") {
+      setRecoveryStep("email");
+      setOtp(["", "", "", "", "", ""]);
+      setNewPassword("");
+    }
   };
 
   const handleInputChange = (setter: any) => (e: any) => {
     playSound("type");
     setter(e.target.value);
+  };
+
+  // OTP input handlers
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      // Handle paste: distribute characters across inputs
+      const chars = value.replace(/[^0-9]/g, "").split("");
+      const newOtp = [...otp];
+      chars.forEach((char, i) => {
+        if (index + i < 6) newOtp[index + i] = char;
+      });
+      setOtp(newOtp);
+      const nextIndex = Math.min(index + chars.length, 5);
+      otpRefs.current[nextIndex]?.focus();
+      playSound("type");
+      return;
+    }
+    
+    const cleaned = value.replace(/[^0-9]/g, "");
+    const newOtp = [...otp];
+    newOtp[index] = cleaned;
+    setOtp(newOtp);
+    
+    if (cleaned && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+    playSound("type");
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -147,11 +192,9 @@ export default function LoginPage() {
       if (activeTab === "login") {
         const res = await authClient.signIn.email({ email, password });
         if (res.error) {
-          if (res.error.message?.includes("email_not_verified")) {
-             throw new Error("EMAIL_NOT_VERIFIED // CHECK_INBOX");
-          }
           throw new Error(res.error.message || "NETWORK_ERR // INVALID_CREDENTIALS");
         }
+        router.push("/");
       } else if (activeTab === "register") {
         const res = await authClient.signUp.email({ 
           email, 
@@ -159,24 +202,46 @@ export default function LoginPage() {
           name: newUserId || email.split("@")[0] 
         });
         if (res.error) throw new Error(res.error.message || "DB_ERR // REGISTRATION_FAILED");
+        router.push("/");
       } else if (activeTab === "forgot-password") {
-        const res = await authClient.emailOtp.sendVerificationOtp({ 
-          email, 
-          type: "forget-password" 
-        });
-        if (res.error) throw new Error(res.error.message || "DB_ERR // REQUEST_FAILED");
-        setAlertType("warning");
-        setAlertMsg("OTP_SENT // CHECK_INBOX");
-        
-        // Arahkan ke halaman reset password dengan parameter email
-        setTimeout(() => {
-          router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-        }, 1000);
-        return;
+        if (recoveryStep === "email") {
+          // Step 1: Send OTP to email
+          const res = await authClient.emailOtp.sendVerificationOtp({
+            email,
+            type: "forget-password",
+          });
+          if (res.error) throw new Error(res.error.message || "DB_ERR // REQUEST_FAILED");
+          setAlertType("warning");
+          setAlertMsg("OTP_TRANSMITTED // CHECK_INBOX");
+          setRecoveryStep("otp");
+          setLoading(false);
+          return;
+        } else {
+          // Step 2: Verify OTP and reset password
+          const otpCode = otp.join("");
+          if (otpCode.length !== 6) throw new Error("INVALID_INPUT // OTP_REQUIRED_6_DIGITS");
+          if (!newPassword) throw new Error("INVALID_INPUT // PASSWORD_REQUIRED");
+
+          const res = await authClient.emailOtp.resetPassword({
+            email,
+            otp: otpCode,
+            password: newPassword,
+          });
+          if (res.error) throw new Error(res.error.message || "VERIFICATION_FAILED // INVALID_OTP");
+          setAlertType("warning");
+          setAlertMsg("PASSWORD_UPDATED // REDIRECTING_TO_LOGIN...");
+          setLoading(false);
+          // Reset state and switch to login
+          setTimeout(() => {
+            setRecoveryStep("email");
+            setOtp(["", "", "", "", "", ""]);
+            setNewPassword("");
+            setActiveTab("login");
+            setAlertMsg("");
+          }, 2000);
+          return;
+        }
       }
-      
-      // Success
-      router.push("/");
     } catch (err: any) {
       playSound("error");
       setAlertType("error");
@@ -330,6 +395,72 @@ export default function LoginPage() {
         .cyber-btn:hover { color: #000; box-shadow: 0 0 20px var(--c-primary); }
         .cyber-btn:hover::before { left: 0; }
 
+        .cyber-btn-secondary {
+          background: transparent;
+          border: 1px solid rgba(0, 255, 255, 0.3);
+          color: rgba(0, 255, 255, 0.6);
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s;
+          clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+        .cyber-btn-secondary:hover {
+          border-color: var(--c-primary);
+          color: var(--c-primary);
+        }
+
+        /* OTP INPUT */
+        .otp-input {
+          width: 48px; height: 56px;
+          background: rgba(0, 255, 255, 0.05);
+          border: 1px solid rgba(0, 255, 255, 0.3);
+          color: var(--c-secondary);
+          font-family: 'Orbitron', sans-serif;
+          font-size: 24px; font-weight: 900;
+          text-align: center;
+          transition: all 0.2s;
+          caret-color: var(--c-primary);
+        }
+        .otp-input:focus {
+          outline: none;
+          border-color: var(--c-secondary);
+          background: rgba(255, 0, 255, 0.08);
+          box-shadow: 0 0 20px rgba(255, 0, 255, 0.3), inset 0 0 10px rgba(255, 0, 255, 0.1);
+          animation: otpPulse 1s ease infinite;
+        }
+        .otp-input.filled {
+          border-color: var(--c-secondary);
+          background: rgba(255, 0, 255, 0.1);
+          box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
+        }
+        @keyframes otpPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 255, 0.3), inset 0 0 10px rgba(255, 0, 255, 0.1); }
+          50% { box-shadow: 0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 15px rgba(255, 0, 255, 0.2); }
+        }
+
+        /* STEP INDICATOR */
+        .step-indicator {
+          display: flex; align-items: center; gap: 8px;
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 11px; color: rgba(0, 255, 255, 0.5);
+          letter-spacing: 2px;
+        }
+        .step-dot {
+          width: 8px; height: 8px; border: 1px solid rgba(0, 255, 255, 0.3);
+          transform: rotate(45deg); transition: all 0.3s;
+        }
+        .step-dot.active {
+          background: var(--c-primary);
+          border-color: var(--c-primary);
+          box-shadow: 0 0 8px var(--c-primary);
+        }
+        .step-line {
+          width: 24px; height: 1px;
+          background: rgba(0, 255, 255, 0.2);
+          transition: background 0.3s;
+        }
+        .step-line.active { background: var(--c-primary); box-shadow: 0 0 4px var(--c-primary); }
+
         /* ALERTS */
         .sys-alert {
           border-left: 4px solid;
@@ -387,6 +518,19 @@ export default function LoginPage() {
           </button>
         </div>
 
+        {/* STEP INDICATOR for recovery */}
+        {activeTab === "forgot-password" && (
+          <div className="flex justify-center">
+            <div className="step-indicator">
+              <div className={`step-dot ${recoveryStep === "email" ? "active" : (recoveryStep === "otp" ? "active" : "")}`}></div>
+              <span className={recoveryStep === "email" ? "text-cyan-400" : "text-cyan-600"}>EMAIL</span>
+              <div className={`step-line ${recoveryStep === "otp" ? "active" : ""}`}></div>
+              <div className={`step-dot ${recoveryStep === "otp" ? "active" : ""}`}></div>
+              <span className={recoveryStep === "otp" ? "text-cyan-400" : ""}>OTP+KEY</span>
+            </div>
+          </div>
+        )}
+
         {/* ALERT */}
         {alertMsg && (
           <div className={`sys-alert p-3 text-xs tracking-widest txt-sharetech uppercase ${alertType === "error" ? "alert-error" : "alert-warning"}`}>
@@ -411,20 +555,24 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-400 tracking-widest">
-              &gt; {activeTab === "login" ? "USER_ID // EMAIL" : "EMAIL_ADDRESS"}
-            </label>
-            <input 
-              type="email" 
-              required 
-              value={email}
-              onChange={handleInputChange(setEmail)}
-              className="cyber-input p-3 text-lg w-full" 
-              placeholder="operator@nightcity.sys"
-            />
-          </div>
+          {/* EMAIL field - shown for login, register, and forgot-password step 1 */}
+          {(activeTab !== "forgot-password" || recoveryStep === "email") && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-cyan-400 tracking-widest">
+                &gt; {activeTab === "login" ? "USER_ID // EMAIL" : "EMAIL_ADDRESS"}
+              </label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={handleInputChange(setEmail)}
+                className="cyber-input p-3 text-lg w-full" 
+                placeholder="operator@nightcity.sys"
+              />
+            </div>
+          )}
 
+          {/* PASSWORD field - shown for login and register only */}
           {activeTab !== "forgot-password" && (
             <div className="flex flex-col gap-2">
               <label className="text-xs text-cyan-400 tracking-widest">
@@ -441,14 +589,79 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* OTP + NEW PASSWORD - shown for forgot-password step 2 */}
+          {activeTab === "forgot-password" && recoveryStep === "otp" && (
+            <>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-cyan-400 tracking-widest">&gt; VERIFICATION_CODE // 6_DIGIT</label>
+                <p className="text-xs text-gray-500 tracking-wider mb-1">OTP dikirim ke: {email}</p>
+                <div className="flex justify-center gap-2">
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { otpRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      className={`otp-input ${digit ? "filled" : ""}`}
+                      style={{ cursor: 'none' }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-cyan-400 tracking-widest">&gt; NEW_PASSWORD</label>
+                <input 
+                  type="password" 
+                  required 
+                  value={newPassword}
+                  onChange={handleInputChange(setNewPassword)}
+                  className="cyber-input p-3 text-lg w-full" 
+                  placeholder="••••••••"
+                />
+              </div>
+            </>
+          )}
+
           <button 
             type="submit" 
             disabled={loading}
             onMouseEnter={() => playSound("hover")}
             className="cyber-btn txt-orbitron w-full p-4 mt-2 text-lg font-bold tracking-widest"
           >
-            {loading ? "PROCESSING..." : (activeTab === "login" ? "INISIASI LINK" : activeTab === "register" ? "DAFTAR SISTEM" : "KIRIM RESET LINK")}
+            {loading 
+              ? "PROCESSING..." 
+              : activeTab === "login" 
+                ? "INISIASI LINK" 
+                : activeTab === "register" 
+                  ? "DAFTAR SISTEM" 
+                  : recoveryStep === "email"
+                    ? "KIRIM KODE OTP"
+                    : "RESET PASSWORD"
+            }
           </button>
+
+          {/* Back button for OTP step */}
+          {activeTab === "forgot-password" && recoveryStep === "otp" && (
+            <button
+              type="button"
+              onClick={() => {
+                playSound("click");
+                setRecoveryStep("email");
+                setOtp(["", "", "", "", "", ""]);
+                setNewPassword("");
+                setAlertMsg("");
+              }}
+              onMouseEnter={() => playSound("hover")}
+              className="cyber-btn-secondary txt-orbitron w-full p-3 text-sm tracking-widest"
+            >
+              &lt; KEMBALI
+            </button>
+          )}
 
         </form>
 
