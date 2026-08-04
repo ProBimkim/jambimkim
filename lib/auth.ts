@@ -2,9 +2,15 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { dash } from "@better-auth/infra";
 import { emailOTP } from "better-auth/plugins";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS,
+  },
+});
 
 export const auth = betterAuth({
   database: new Pool({
@@ -22,24 +28,25 @@ export const auth = betterAuth({
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
         if (type === "forget-password") {
-          const { error } = await resend.emails.send({
-            from: "onboarding@resend.dev",
-            to: email,
-            subject: "Kode OTP Reset Password",
-            html: `
-              <div style="font-family: monospace; background: #050914; color: #00ffff; padding: 32px; border-radius: 8px;">
-                <h2 style="color: #00ffff; margin-bottom: 16px;">SYS.RECOVERY</h2>
-                <p style="color: #ccc;">Kode OTP untuk reset password Anda:</p>
-                <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #ff00ff; margin: 24px 0; padding: 16px; border: 1px solid #00ffff; text-align: center;">
-                  ${otp}
+          try {
+            await transporter.sendMail({
+              from: `"Jam Digital Bimkim" <${process.env.GMAIL_USER}>`,
+              to: email,
+              subject: "Kode OTP Reset Password",
+              html: `
+                <div style="font-family: monospace; background: #050914; color: #00ffff; padding: 32px; border-radius: 8px;">
+                  <h2 style="color: #00ffff; margin-bottom: 16px;">SYS.RECOVERY</h2>
+                  <p style="color: #ccc;">Kode OTP untuk reset password Anda:</p>
+                  <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #ff00ff; margin: 24px 0; padding: 16px; border: 1px solid #00ffff; text-align: center;">
+                    ${otp}
+                  </div>
+                  <p style="color: #888; font-size: 12px;">Kode ini berlaku selama 5 menit. Jangan bagikan kode ini kepada siapapun.</p>
                 </div>
-                <p style="color: #888; font-size: 12px;">Kode ini berlaku selama 5 menit. Jangan bagikan kode ini kepada siapapun.</p>
-              </div>
-            `,
-          });
-          if (error) {
-            console.error("Resend Error:", error);
-            throw new Error(error.message);
+              `,
+            });
+          } catch (error: any) {
+            console.error("Nodemailer Error:", error);
+            throw new Error(error.message || "Failed to send OTP email");
           }
         }
       },
