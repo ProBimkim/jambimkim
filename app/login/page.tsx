@@ -160,14 +160,18 @@ export default function LoginPage() {
         });
         if (res.error) throw new Error(res.error.message || "DB_ERR // REGISTRATION_FAILED");
       } else if (activeTab === "forgot-password") {
-        const res = await authClient.requestPasswordReset({ 
+        const res = await authClient.emailOtp.sendVerificationOtp({ 
           email, 
-          redirectTo: "/reset-password" 
+          type: "forget-password" 
         });
         if (res.error) throw new Error(res.error.message || "DB_ERR // REQUEST_FAILED");
         setAlertType("warning");
-        setAlertMsg("RESET_LINK_SENT // CHECK_INBOX");
-        setLoading(false);
+        setAlertMsg("OTP_SENT // CHECK_INBOX");
+        
+        // Arahkan ke halaman reset password dengan parameter email
+        setTimeout(() => {
+          router.push(`/reset-password?email=${encodeURIComponent(email)}`);
+        }, 1000);
         return;
       }
       

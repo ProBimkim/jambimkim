@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState<"error" | "warning">("error");
+
+  useEffect(() => {
+    // Get email from query params
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get("email");
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,8 +28,10 @@ export default function ResetPasswordPage() {
     setAlertMsg("");
 
     try {
-      const res = await authClient.resetPassword({
-        newPassword: password,
+      const res = await authClient.emailOtp.resetPassword({
+        email,
+        otp,
+        password,
       });
       if (res.error) throw new Error(res.error.message || "NETWORK_ERR // PASSWORD_RESET_FAILED");
       
@@ -99,7 +112,7 @@ export default function ResetPasswordPage() {
       <div className="auth-widget w-full max-w-md p-8 flex flex-col gap-6">
         <div className="text-center">
           <h1 className="font-[Orbitron] text-3xl font-black tracking-widest mb-2" style={{ textShadow: '2px 0 var(--c-secondary), -2px 0 var(--c-primary)' }}>SYS.RESET</h1>
-          <p className="font-[Share_Tech_Mono] text-sm text-cyan-500 opacity-80 tracking-widest">&gt; NEW_KEY_REQUIRED_</p>
+          <p className="font-[Share_Tech_Mono] text-sm text-cyan-500 opacity-80 tracking-widest">&gt; VERIFY_OTP_AND_SET_KEY_</p>
         </div>
 
         {alertMsg && (
@@ -109,6 +122,35 @@ export default function ResetPasswordPage() {
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 font-[Share_Tech_Mono]">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-400 tracking-widest">
+              &gt; EMAIL
+            </label>
+            <input 
+              type="email" 
+              required 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="cyber-input p-3 text-lg w-full opacity-70" 
+              placeholder="user@domain.com"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-cyan-400 tracking-widest">
+              &gt; OTP_CODE
+            </label>
+            <input 
+              type="text" 
+              required 
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              className="cyber-input p-3 text-lg w-full" 
+              placeholder="123456"
+              maxLength={6}
+            />
+          </div>
+
           <div className="flex flex-col gap-2">
             <label className="text-xs text-cyan-400 tracking-widest">
               &gt; NEW_PASSWORD
