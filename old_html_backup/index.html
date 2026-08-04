@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Digital Clock - Custom Cursor</title>
+    <!-- Menggunakan font cyberpunk paling estetik & tajam -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-base: #0ff; 
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* MASTER CONTAINER - Memastikan seluruh elemen berubah warna serempak */
+        #cyber-scene {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            animation: masterRGB 16s infinite linear;
+            /* Menyembunyikan kursor bawaan untuk layar desktop */
+            cursor: none;
+        }
+
+        @keyframes masterRGB {
+            0% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(180deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* --- KURSOR CUSTOM CYBERPUNK (Khusus Desktop) --- */
+        @media (pointer: fine) {
+            .cursor-dot {
+                position: fixed;
+                top: 0; left: 0;
+                width: 6px; height: 6px;
+                background: var(--neon-base);
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 10000;
+                pointer-events: none; /* Agar tidak memblokir klik */
+                box-shadow: 0 0 10px var(--neon-base), 0 0 20px #fff;
+            }
+
+            .cursor-outline {
+                position: fixed;
+                top: 0; left: 0;
+                width: 35px; height: 35px;
+                border: 1px solid var(--neon-base);
+                transform: translate(-50%, -50%) rotate(45deg);
+                z-index: 9999;
+                pointer-events: none;
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.4), inset 0 0 10px rgba(0, 255, 255, 0.2);
+                transition: transform 0.15s ease, width 0.15s, height 0.15s, border-color 0.15s;
+            }
+
+            /* Efek saat mouse di-klik */
+            .cursor-outline.active {
+                transform: translate(-50%, -50%) rotate(90deg) scale(0.7);
+                border-width: 2px;
+                border-color: #fff;
+                box-shadow: 0 0 20px var(--neon-base);
+            }
+        }
+
+        /* Sembunyikan kursor custom di HP / layar sentuh */
+        @media (pointer: coarse) {
+            .cursor-dot, .cursor-outline {
+                display: none !important;
+            }
+            #cyber-scene {
+                cursor: auto;
+            }
+        }
+
+        /* 1. LATAR BELAKANG TEMBOK BATA JELAS & MENONJOL */
+        .brick-texture {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1511253819057-dfdc96825c34?q=80&w=2000&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            filter: grayscale(80%) brightness(0.7) contrast(1.8);
+            z-index: 1;
+        }
+
+        /* SOROTAN CAHAYA NEON DI ATAS TEMBOK BATA */
+        .brick-illumination {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 40%, rgba(0, 255, 255, 0.85) 0%, rgba(0, 255, 255, 0.25) 40%, rgba(0,0,0,0.6) 80%);
+            mix-blend-mode: overlay;
+            z-index: 2;
+        }
+
+        .brick-glow-core {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 40%, rgba(0, 255, 255, 0.5) 0%, transparent 50%);
+            mix-blend-mode: color-dodge;
+            z-index: 3;
+        }
+
+        /* 2. LANTAI BAWAH DENGAN EFEK GENANGAN BASAH */
+        .floor-area {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 35vh;
+            background: linear-gradient(to bottom, #010204 0%, #050b14 100%);
+            border-top: 3px solid var(--neon-base);
+            box-shadow: 0 -10px 30px var(--neon-base);
+            z-index: 4;
+        }
+
+        /* 3. WADAH JAM UTAMA */
+        .clock-wrapper {
+            position: absolute;
+            bottom: 35vh;
+            left: 50%;
+            transform: translate(-50%, 35px);
+            z-index: 5;
+            width: 90vw;
+            max-width: 680px;
+            -webkit-box-reflect: below 5px linear-gradient(transparent 30%, rgba(255, 255, 255, 0.65));
+        }
+
+        /* Bingkai Cyberpunk Estetik */
+        .cyber-frame {
+            background: rgba(3, 8, 15, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 45px 60px;
+            border: 2px solid var(--neon-base);
+            border-radius: 4px;
+            clip-path: polygon(
+                0 0, 
+                calc(100% - 35px) 0, 
+                100% 35px, 
+                100% 100%, 
+                35px 100%, 
+                0 calc(100% - 35px)
+            );
+            box-shadow: 0 0 30px var(--neon-base), inset 0 0 25px rgba(0, 255, 255, 0.25);
+            position: relative;
+        }
+
+        /* Aksen sudut frame */
+        .cyber-frame::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 50px; height: 4px; background: var(--neon-base);
+            box-shadow: 0 0 15px var(--neon-base);
+        }
+        .cyber-frame::after {
+            content: ''; position: absolute; bottom: 0; right: 0;
+            width: 60px; height: 4px; background: var(--neon-base);
+            box-shadow: 0 0 15px var(--neon-base);
+        }
+
+        /* Angka Jam Bergaya Orbitron */
+        .clock-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 6rem;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 
+                0 0 5px #fff, 0 0 12px #fff,
+                0 0 25px var(--neon-base), 0 0 50px var(--neon-base),
+                0 0 90px var(--neon-base);
+        }
+
+        .colon {
+            animation: blink 1s step-end infinite;
+            margin: 0 12px;
+            transform: translateY(-6px);
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Informasi Sistem & Tanggal */
+        .system-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 18px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--neon-base);
+            text-shadow: 0 0 10px var(--neon-base);
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+        }
+
+        .sys-badge {
+            background: var(--neon-base);
+            color: #000;
+            padding: 5px 14px;
+            font-size: 0.95rem;
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+            font-weight: 900;
+            box-shadow: 0 0 18px var(--neon-base);
+            display: flex;
+            align-items: center;
+            text-shadow: none;
+        }
+
+        /* Efek Genangan Air Beriak */
+        .water-ripples {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 35vh;
+            backdrop-filter: blur(5px) contrast(1.2);
+            -webkit-backdrop-filter: blur(5px) contrast(1.2);
+            background: repeating-linear-gradient(180deg, rgba(0,0,0,0.35) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.35) 5px);
+            z-index: 10;
+            pointer-events: none;
+            animation: rippleMove 5s infinite alternate ease-in-out;
+        }
+
+        @keyframes rippleMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 18px; }
+        }
+
+        /* Efek Glitch Digital */
+        .glitch-effect { animation: cyberGlitch 4.5s infinite; }
+        @keyframes cyberGlitch {
+            0%, 2%, 4%, 100% { transform: translate(0); opacity: 1; filter: contrast(1); }
+            1% { transform: translate(-5px, 2px); opacity: 0.85; filter: contrast(1.6) hue-rotate(-25deg); }
+            3% { transform: translate(5px, -2px); opacity: 0.9; filter: contrast(1.6) hue-rotate(25deg); text-shadow: -5px 0 red, 5px 0 blue; }
+        }
+
+        /* Garis Scan Hologram */
+        .scan-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+            background: rgba(255, 255, 255, 0.7); opacity: 0.35;
+            animation: scan 3.5s linear infinite;
+            box-shadow: 0 0 18px rgba(255,255,255,0.9);
+        }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+        /* CRT Scanlines Halus */
+        .crt-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
+            z-index: 20; background-size: 100% 3px; pointer-events: none; opacity: 0.45;
+        }
+
+        /* Responsif Layar Mobile */
+        @media (max-width: 768px) {
+            .clock-display { font-size: 3.4rem; letter-spacing: 2px; }
+            .cyber-frame { padding: 25px 20px; }
+            .system-info { font-size: 0.85rem; flex-direction: column; align-items: center; gap: 12px; }
+            .floor-area, .water-ripples { height: 40vh; }
+            .clock-wrapper { bottom: 40vh; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="cyber-scene">
+        <!-- KURSOR CYBERPUNK CUSTOM -->
+        <div class="cursor-dot"></div>
+        <div class="cursor-outline"></div>
+
+        <!-- Background Batu Bata Terang & Menonjol -->
+        <div class="brick-texture"></div>
+        <div class="brick-illumination"></div>
+        <div class="brick-glow-core"></div>
+        
+        <!-- Lantai Genangan Air -->
+        <div class="floor-area"></div>
+
+        <!-- Jam Digital Utama -->
+        <div class="clock-wrapper">
+            <div class="cyber-frame glitch-effect" id="glitch-target">
+                <div class="scan-bar"></div>
+                
+                <div class="clock-display">
+                    <span id="hours">00</span>
+                    <span class="colon">:</span>
+                    <span id="minutes">00</span>
+                    <span class="colon">:</span>
+                    <span id="seconds">00</span>
+                </div>
+
+                <div class="system-info">
+                    <div class="date-display" id="date">SYS.DATE: // 2077.01.01</div>
+                    <div class="sys-badge" id="timezone-badge">TZ: // CALC...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lapisan Riak Air -->
+        <div class="water-ripples"></div>
+
+        <!-- Efek Layar CRT -->
+        <div class="crt-overlay"></div>
+    </div>
+
+    <script>
+        // --- LOGIKA KURSOR CYBERPUNK ---
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorOutline = document.querySelector('.cursor-outline');
+
+        // Titik awal kursor di tengah layar
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 2;
+        let outlineX = mouseX;
+        let outlineY = mouseY;
+
+        // Mendeteksi pergerakan mouse
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            // Pergerakan dot instan
+            if (cursorDot) {
+                cursorDot.style.left = `${mouseX}px`;
+                cursorDot.style.top = `${mouseY}px`;
+            }
+        });
+
+        // Deteksi klik mouse
+        window.addEventListener('mousedown', () => {
+            if (cursorOutline) cursorOutline.classList.add('active');
+        });
+        window.addEventListener('mouseup', () => {
+            if (cursorOutline) cursorOutline.classList.remove('active');
+        });
+
+        // Animasi halus (Lerp) untuk garis bidik luar
+        function animateCursor() {
+            // Outline mengejar mouse dengan kecepatan 15% (efek smooth HUD)
+            outlineX += (mouseX - outlineX) * 0.15;
+            outlineY += (mouseY - outlineY) * 0.15;
+            
+            if (cursorOutline) {
+                cursorOutline.style.left = `${outlineX}px`;
+                cursorOutline.style.top = `${outlineY}px`;
+            }
+            requestAnimationFrame(animateCursor);
+        }
+        animateCursor(); // Mulai animasi kursor
+
+
+        // --- WEB AUDIO API SYSTEM (Otomatis) ---
+        let audioCtx = null;
+        let ambientGain = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            startAmbientSound();
+        }
+
+        // Jalankan audio otomatis saat ada interaksi
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('touchstart', initAudio, { once: true });
+        window.addEventListener('keydown', initAudio, { once: true });
+        window.addEventListener('load', initAudio);
+
+        // Suara Detik Jam (Tick)
+        function playTickSound() {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.04);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.04);
+        }
+
+        // Suara Glitch 
+        function playGlitchSound() {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const bufferSize = audioCtx.sampleRate * 0.12;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+            const whiteNoise = audioCtx.createBufferSource(); whiteNoise.buffer = buffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.setValueAtTime(1200 + Math.random() * 800, audioCtx.currentTime); filter.Q.setValueAtTime(3, audioCtx.currentTime);
+            const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.08, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+            whiteNoise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+            whiteNoise.start(); whiteNoise.stop(audioCtx.currentTime + 0.12);
+        }
+
+        // Suara Background (Ambient Hum)
+        function startAmbientSound() {
+            if (!audioCtx || ambientGain) return;
+            const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator();
+            ambientGain = audioCtx.createGain();
+            osc1.type = 'sawtooth'; osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+            osc2.type = 'sine'; osc2.frequency.setValueAtTime(110, audioCtx.currentTime);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.setValueAtTime(350, audioCtx.currentTime);
+            ambientGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+            osc1.connect(filter); osc2.connect(filter); filter.connect(ambientGain); ambientGain.connect(audioCtx.destination);
+            osc1.start(); osc2.start();
+        }
+
+        // --- LOGIKA WAKTU & ZONA WAKTU ---
+        function setTimezone() {
+            const date = new Date();
+            let offset = -date.getTimezoneOffset() / 60;
+            let sign = offset >= 0 ? '+' : '';
+            document.getElementById('timezone-badge').innerText = `TZ: // GMT${sign}${offset}`;
+        }
+
+        let lastSecond = -1;
+        function updateTime() {
+            const now = new Date();
+            let currentSec = now.getSeconds();
+            document.getElementById('hours').innerText = now.getHours().toString().padStart(2, '0');
+            document.getElementById('minutes').innerText = now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('seconds').innerText = currentSec.toString().padStart(2, '0');
+
+            if (currentSec !== lastSecond) {
+                playTickSound();
+                lastSecond = currentSec;
+            }
+
+            document.getElementById('date').innerText = `SYS.DATE: // ${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}`;
+        }
+
+        setTimezone();
+        setInterval(updateTime, 200);
+        updateTime();
+
+        // Glitch Otomatis Berkala + Suara
+        const glitchElement = document.getElementById('glitch-target');
+        setInterval(() => {
+            if (Math.random() > 0.6) {
+                glitchElement.classList.remove('glitch-effect');
+                void glitchElement.offsetWidth; 
+                setTimeout(() => {
+                    glitchElement.classList.add('glitch-effect');
+                    playGlitchSound();
+                }, 40);
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
