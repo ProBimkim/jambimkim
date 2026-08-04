@@ -164,7 +164,7 @@ export default function LoginPage() {
         setLoading(false);
         return; // Don't redirect yet
       } else if (activeTab === "forgot-password") {
-        const res = await authClient.forgetPassword({ 
+        const res = await authClient.requestPasswordReset({ 
           email, 
           redirectTo: "/reset-password" 
         });
