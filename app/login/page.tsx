@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState<"error" | "warning">("error");
+  const [isDesktop, setIsDesktop] = useState(false);
 
   // Form states
   const [email, setEmail] = useState("");
@@ -28,6 +29,12 @@ export default function LoginPage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
+    // Detect desktop (pointer: fine = mouse/trackpad)
+    const mql = window.matchMedia("(pointer: fine)");
+    setIsDesktop(mql.matches);
+    const handleChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", handleChange);
+
     // INIT AUDIO
     const initAudio = () => {
       if (!audioCtxRef.current) {
@@ -41,46 +48,54 @@ export default function LoginPage() {
     window.addEventListener("click", initAudio, { once: true });
     window.addEventListener("keydown", initAudio, { once: true });
 
-    // CURSOR LOGIC
-    const cursorDot = document.querySelector(".cyber-cursor-dot") as HTMLElement;
-    const cursorOutline = document.querySelector(".cyber-cursor-outline") as HTMLElement;
-    let mouseX = window.innerWidth / 2;
-    let mouseY = window.innerHeight / 2;
-    let outlineX = mouseX;
-    let outlineY = mouseY;
+    // CURSOR LOGIC — Desktop only
     let animFrame: number;
+    if (mql.matches) {
+      const cursorDot = document.querySelector(".cyber-cursor-dot") as HTMLElement;
+      const cursorOutline = document.querySelector(".cyber-cursor-outline") as HTMLElement;
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+      let outlineX = mouseX;
+      let outlineY = mouseY;
 
-    const onMouseMove = (e: MouseEvent) => {
-      mouseX = e.clientX;
-      mouseY = e.clientY;
-      if (cursorDot) {
-        cursorDot.style.left = `${mouseX}px`;
-        cursorDot.style.top = `${mouseY}px`;
-      }
-    };
+      const onMouseMove = (e: MouseEvent) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (cursorDot) {
+          cursorDot.style.left = `${mouseX}px`;
+          cursorDot.style.top = `${mouseY}px`;
+        }
+      };
 
-    const onMouseDown = () => cursorOutline?.classList.add("clicking");
-    const onMouseUp = () => cursorOutline?.classList.remove("clicking");
+      const onMouseDown = () => cursorOutline?.classList.add("clicking");
+      const onMouseUp = () => cursorOutline?.classList.remove("clicking");
 
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mouseup", onMouseUp);
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mousedown", onMouseDown);
+      window.addEventListener("mouseup", onMouseUp);
 
-    const animateCursor = () => {
-      outlineX += (mouseX - outlineX) * 0.2; // Lerp
-      outlineY += (mouseY - outlineY) * 0.2;
-      if (cursorOutline) {
-        cursorOutline.style.left = `${outlineX}px`;
-        cursorOutline.style.top = `${outlineY}px`;
-      }
-      animFrame = requestAnimationFrame(animateCursor);
-    };
-    animateCursor();
+      const animateCursor = () => {
+        outlineX += (mouseX - outlineX) * 0.2;
+        outlineY += (mouseY - outlineY) * 0.2;
+        if (cursorOutline) {
+          cursorOutline.style.left = `${outlineX}px`;
+          cursorOutline.style.top = `${outlineY}px`;
+        }
+        animFrame = requestAnimationFrame(animateCursor);
+      };
+      animateCursor();
+
+      return () => {
+        mql.removeEventListener("change", handleChange);
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mousedown", onMouseDown);
+        window.removeEventListener("mouseup", onMouseUp);
+        cancelAnimationFrame(animFrame);
+      };
+    }
 
     return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mouseup", onMouseUp);
+      mql.removeEventListener("change", handleChange);
       cancelAnimationFrame(animFrame);
     };
   }, []);
@@ -96,14 +111,12 @@ export default function LoginPage() {
     gain.connect(ctx.destination);
     
     if (type === "type") {
-      // Random freq square wave 1200-1600Hz
       osc.type = "square";
       osc.frequency.setValueAtTime(1200 + Math.random() * 400, ctx.currentTime);
       gain.gain.setValueAtTime(0.01, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
       osc.start(); osc.stop(ctx.currentTime + 0.05);
     } else if (type === "hover") {
-      // Sine wave sweeping up 600-800Hz
       osc.type = "sine";
       osc.frequency.setValueAtTime(600, ctx.currentTime);
       osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.1);
@@ -111,7 +124,6 @@ export default function LoginPage() {
       gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 0.1);
       osc.start(); osc.stop(ctx.currentTime + 0.1);
     } else if (type === "click") {
-      // Sawtooth down 400-100Hz
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(400, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.15);
@@ -119,7 +131,6 @@ export default function LoginPage() {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
       osc.start(); osc.stop(ctx.currentTime + 0.15);
     } else if (type === "error") {
-      // Square low tone 150-100Hz
       osc.type = "square";
       osc.frequency.setValueAtTime(150, ctx.currentTime);
       osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.3);
@@ -133,7 +144,6 @@ export default function LoginPage() {
     playSound("click");
     setActiveTab(tab);
     setAlertMsg("");
-    // Reset recovery state when switching tabs
     if (tab !== "forgot-password") {
       setRecoveryStep("email");
       setOtp(["", "", "", "", "", ""]);
@@ -149,7 +159,6 @@ export default function LoginPage() {
   // OTP input handlers
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) {
-      // Handle paste: distribute characters across inputs
       const chars = value.replace(/[^0-9]/g, "").split("");
       const newOtp = [...otp];
       chars.forEach((char, i) => {
@@ -185,7 +194,6 @@ export default function LoginPage() {
     setLoading(true);
     setAlertMsg("");
     
-    // Simulate 1s loading delay
     await new Promise(r => setTimeout(r, 1000));
 
     try {
@@ -205,7 +213,6 @@ export default function LoginPage() {
         router.push("/");
       } else if (activeTab === "forgot-password") {
         if (recoveryStep === "email") {
-          // Step 1: Send OTP to email
           const res = await authClient.emailOtp.sendVerificationOtp({
             email,
             type: "forget-password",
@@ -217,7 +224,6 @@ export default function LoginPage() {
           setLoading(false);
           return;
         } else {
-          // Step 2: Verify OTP and reset password
           const otpCode = otp.join("");
           if (otpCode.length !== 6) throw new Error("INVALID_INPUT // OTP_REQUIRED_6_DIGITS");
           if (!newPassword) throw new Error("INVALID_INPUT // PASSWORD_REQUIRED");
@@ -231,7 +237,6 @@ export default function LoginPage() {
           setAlertType("warning");
           setAlertMsg("PASSWORD_UPDATED // REDIRECTING_TO_LOGIN...");
           setLoading(false);
-          // Reset state and switch to login
           setTimeout(() => {
             setRecoveryStep("email");
             setOtp(["", "", "", "", "", ""]);
@@ -252,7 +257,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050914] text-white flex items-center justify-center relative overflow-hidden font-mono select-none" style={{ cursor: 'none' }}>
+    <div
+      className="login-page"
+      style={{ cursor: isDesktop ? 'none' : 'auto' }}
+    >
       <style dangerouslySetInnerHTML={{__html: `
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Share+Tech+Mono&display=swap');
         
@@ -263,27 +271,52 @@ export default function LoginPage() {
           --c-panel: rgba(5, 9, 20, 0.7);
         }
 
-        /* CURSOR SYSTEM LAYER */
-        .cyber-cursor-dot {
-          position: fixed; top: 0; left: 0; width: 4px; height: 4px;
-          background: var(--c-primary); border-radius: 50%;
-          transform: translate(-50%, -50%); z-index: 10000;
-          pointer-events: none; box-shadow: 0 0 10px var(--c-primary);
-        }
-        .cyber-cursor-outline {
-          position: fixed; top: 0; left: 0; width: 30px; height: 30px;
-          border: 1px solid var(--c-primary); transform: translate(-50%, -50%) rotate(45deg);
-          z-index: 9999; pointer-events: none;
-          box-shadow: 0 0 15px rgba(0, 255, 255, 0.3), inset 0 0 10px rgba(0, 255, 255, 0.2);
-          transition: transform 0.1s ease, width 0.1s, height 0.1s, border-color 0.1s, box-shadow 0.1s;
-        }
-        .cyber-cursor-outline.clicking {
-          transform: translate(-50%, -50%) rotate(90deg) scale(0.6);
-          border-color: var(--c-secondary);
-          box-shadow: 0 0 20px var(--c-secondary), inset 0 0 10px var(--c-secondary);
+        .login-page {
+          min-height: 100vh;
+          min-height: 100dvh;
+          background: var(--c-bg);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          overflow: hidden;
+          font-family: monospace;
+          user-select: none;
+          padding: 16px;
         }
 
-        /* ENVIRONMENT LAYER */
+        /* ═══════════════════════════════════════════ */
+        /* CURSOR — Desktop only (pointer: fine)      */
+        /* ═══════════════════════════════════════════ */
+        @media (pointer: coarse) {
+          .cyber-cursor-dot,
+          .cyber-cursor-outline { display: none !important; }
+        }
+        @media (pointer: fine) {
+          .cyber-cursor-dot {
+            position: fixed; top: 0; left: 0; width: 4px; height: 4px;
+            background: var(--c-primary); border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 10000;
+            pointer-events: none; box-shadow: 0 0 10px var(--c-primary);
+          }
+          .cyber-cursor-outline {
+            position: fixed; top: 0; left: 0; width: 30px; height: 30px;
+            border: 1px solid var(--c-primary); transform: translate(-50%, -50%) rotate(45deg);
+            z-index: 9999; pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3), inset 0 0 10px rgba(0, 255, 255, 0.2);
+            transition: transform 0.1s ease, width 0.1s, height 0.1s, border-color 0.1s, box-shadow 0.1s;
+          }
+          .cyber-cursor-outline.clicking {
+            transform: translate(-50%, -50%) rotate(90deg) scale(0.6);
+            border-color: var(--c-secondary);
+            box-shadow: 0 0 20px var(--c-secondary), inset 0 0 10px var(--c-secondary);
+          }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* ENVIRONMENT LAYER                          */
+        /* ═══════════════════════════════════════════ */
         .cyber-grid {
           position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
           background-image: 
@@ -310,7 +343,15 @@ export default function LoginPage() {
           background-size: 100% 4px; z-index: 20; pointer-events: none;
         }
 
-        /* INTERFACE LAYER */
+        /* Mobile: subtle the CRT effect */
+        @media (max-width: 640px) {
+          .crt-lines { opacity: 0.4; }
+          .cyber-grid { opacity: 0.5; }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* AUTH WIDGET                                */
+        /* ═══════════════════════════════════════════ */
         .auth-widget {
           position: relative; z-index: 10;
           background: var(--c-panel);
@@ -323,6 +364,12 @@ export default function LoginPage() {
             calc(100% - 20px) 100%, 0 100%
           );
           animation: bootUp 1.2s cubic-bezier(0.1, 0.8, 0.1, 1);
+          width: 100%;
+          max-width: 440px;
+          padding: 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
         }
         @keyframes bootUp {
           0% { opacity: 0; transform: scale(0.9) translateY(20px); filter: blur(10px) hue-rotate(-45deg); }
@@ -338,7 +385,22 @@ export default function LoginPage() {
           background: var(--c-primary); box-shadow: 0 0 10px var(--c-primary);
         }
 
-        /* TEXT EFFECTS */
+        /* Mobile widget adjustments */
+        @media (max-width: 480px) {
+          .auth-widget {
+            padding: 24px 20px;
+            gap: 18px;
+            clip-path: polygon(
+              0 14px, 14px 0, 
+              100% 0, 100% calc(100% - 14px), 
+              calc(100% - 14px) 100%, 0 100%
+            );
+          }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* TEXT EFFECTS                               */
+        /* ═══════════════════════════════════════════ */
         .txt-orbitron { font-family: 'Orbitron', sans-serif; }
         .txt-sharetech { font-family: 'Share Tech Mono', monospace; }
         
@@ -353,30 +415,104 @@ export default function LoginPage() {
           15% { text-shadow: 0 0 var(--c-secondary), 0 0 var(--c-primary); transform: translate(0); }
         }
 
-        /* FORM ELEMENTS */
+        .page-title {
+          font-family: 'Orbitron', sans-serif;
+          font-size: 1.875rem;
+          font-weight: 900;
+          letter-spacing: 0.15em;
+          margin-bottom: 6px;
+        }
+        .page-subtitle {
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.8rem;
+          color: rgba(0, 255, 255, 0.7);
+          letter-spacing: 0.15em;
+        }
+
+        @media (max-width: 480px) {
+          .page-title { font-size: 1.5rem; letter-spacing: 0.1em; }
+          .page-subtitle { font-size: 0.7rem; }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* TABS                                       */
+        /* ═══════════════════════════════════════════ */
+        .tab-bar {
+          display: flex;
+          justify-content: center;
+          gap: 4px;
+          border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+          padding-bottom: 8px;
+        }
         .cyber-tab {
           font-family: 'Orbitron', sans-serif;
           transition: all 0.3s;
           border-bottom: 2px solid transparent;
+          padding: 8px 16px;
+          font-size: 0.75rem;
+          letter-spacing: 0.15em;
+          color: rgba(255, 255, 255, 0.35);
+          background: none;
+          border: none;
+          border-bottom: 2px solid transparent;
+          cursor: pointer;
         }
         .cyber-tab.active {
           color: var(--c-primary);
           border-bottom-color: var(--c-primary);
           text-shadow: 0 0 10px var(--c-primary);
         }
-        .cyber-tab:hover:not(.active) { color: #fff; text-shadow: 0 0 8px #fff; }
+        @media (pointer: fine) {
+          .cyber-tab:hover:not(.active) { color: #fff; text-shadow: 0 0 8px #fff; }
+        }
+        .cyber-tab:active:not(.active) { color: #fff; text-shadow: 0 0 8px #fff; }
 
+        @media (max-width: 480px) {
+          .tab-bar { gap: 0; }
+          .cyber-tab {
+            font-size: 0.65rem;
+            padding: 8px 10px;
+            letter-spacing: 0.08em;
+          }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* FORM ELEMENTS                              */
+        /* ═══════════════════════════════════════════ */
         .cyber-input {
           background: rgba(0, 255, 255, 0.05);
           border: 1px solid rgba(0, 255, 255, 0.2);
           color: var(--c-primary);
           font-family: 'Share Tech Mono', monospace;
           transition: all 0.2s;
+          padding: 14px;
+          font-size: 1rem;
+          width: 100%;
+          border-radius: 0;
+          -webkit-appearance: none;
         }
         .cyber-input:focus {
           outline: none; border-color: var(--c-primary);
           background: rgba(0, 255, 255, 0.1);
           box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        .cyber-input::placeholder {
+          color: rgba(0, 255, 255, 0.25);
+        }
+
+        /* Prevent iOS zoom on input focus */
+        @media (max-width: 480px) {
+          .cyber-input {
+            font-size: 16px;
+            padding: 12px;
+          }
+        }
+
+        .input-label {
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.7rem;
+          color: rgba(0, 255, 255, 0.7);
+          letter-spacing: 0.15em;
         }
 
         .cyber-btn {
@@ -387,13 +523,42 @@ export default function LoginPage() {
           overflow: hidden;
           transition: all 0.3s;
           clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+          font-family: 'Orbitron', sans-serif;
+          width: 100%;
+          padding: 16px;
+          margin-top: 8px;
+          font-size: 1rem;
+          font-weight: 700;
+          letter-spacing: 0.15em;
+          cursor: pointer;
+          min-height: 56px;
         }
         .cyber-btn::before {
           content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
           background: var(--c-primary); transition: all 0.3s ease; z-index: -1;
         }
-        .cyber-btn:hover { color: #000; box-shadow: 0 0 20px var(--c-primary); }
-        .cyber-btn:hover::before { left: 0; }
+        @media (pointer: fine) {
+          .cyber-btn:hover { color: #000; box-shadow: 0 0 20px var(--c-primary); }
+          .cyber-btn:hover::before { left: 0; }
+        }
+        .cyber-btn:active { 
+          color: #000; 
+          box-shadow: 0 0 20px var(--c-primary);
+          background: var(--c-primary);
+        }
+        .cyber-btn:disabled {
+          opacity: 0.5;
+          pointer-events: none;
+        }
+
+        @media (max-width: 480px) {
+          .cyber-btn {
+            font-size: 0.85rem;
+            padding: 14px;
+            min-height: 50px;
+            letter-spacing: 0.1em;
+          }
+        }
 
         .cyber-btn-secondary {
           background: transparent;
@@ -403,23 +568,44 @@ export default function LoginPage() {
           overflow: hidden;
           transition: all 0.3s;
           clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+          font-family: 'Orbitron', sans-serif;
+          width: 100%;
+          padding: 12px;
+          font-size: 0.8rem;
+          letter-spacing: 0.15em;
+          cursor: pointer;
         }
-        .cyber-btn-secondary:hover {
+        @media (pointer: fine) {
+          .cyber-btn-secondary:hover {
+            border-color: var(--c-primary);
+            color: var(--c-primary);
+          }
+        }
+        .cyber-btn-secondary:active {
           border-color: var(--c-primary);
           color: var(--c-primary);
         }
 
-        /* OTP INPUT */
+        /* ═══════════════════════════════════════════ */
+        /* OTP INPUT                                  */
+        /* ═══════════════════════════════════════════ */
+        .otp-container {
+          display: flex;
+          justify-content: center;
+          gap: 8px;
+        }
         .otp-input {
           width: 48px; height: 56px;
           background: rgba(0, 255, 255, 0.05);
           border: 1px solid rgba(0, 255, 255, 0.3);
           color: var(--c-secondary);
           font-family: 'Orbitron', sans-serif;
-          font-size: 24px; font-weight: 900;
+          font-size: 22px; font-weight: 900;
           text-align: center;
           transition: all 0.2s;
           caret-color: var(--c-primary);
+          border-radius: 0;
+          -webkit-appearance: none;
         }
         .otp-input:focus {
           outline: none;
@@ -438,7 +624,24 @@ export default function LoginPage() {
           50% { box-shadow: 0 0 30px rgba(255, 0, 255, 0.5), inset 0 0 15px rgba(255, 0, 255, 0.2); }
         }
 
-        /* STEP INDICATOR */
+        @media (max-width: 480px) {
+          .otp-container { gap: 6px; }
+          .otp-input {
+            width: 42px; height: 50px;
+            font-size: 20px;
+          }
+        }
+        @media (max-width: 360px) {
+          .otp-container { gap: 4px; }
+          .otp-input {
+            width: 38px; height: 46px;
+            font-size: 18px;
+          }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* STEP INDICATOR                             */
+        /* ═══════════════════════════════════════════ */
         .step-indicator {
           display: flex; align-items: center; gap: 8px;
           font-family: 'Share Tech Mono', monospace;
@@ -461,19 +664,65 @@ export default function LoginPage() {
         }
         .step-line.active { background: var(--c-primary); box-shadow: 0 0 4px var(--c-primary); }
 
-        /* ALERTS */
+        /* ═══════════════════════════════════════════ */
+        /* ALERTS                                     */
+        /* ═══════════════════════════════════════════ */
         .sys-alert {
           border-left: 4px solid;
           background: rgba(0,0,0,0.5);
           animation: fadeAlert 0.3s ease forwards;
+          padding: 12px;
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.7rem;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          word-break: break-word;
         }
         .alert-error { border-color: var(--c-secondary); color: var(--c-secondary); text-shadow: 0 0 8px var(--c-secondary); box-shadow: inset 10px 0 20px -10px var(--c-secondary); }
         .alert-warning { border-color: var(--c-primary); color: var(--c-primary); text-shadow: 0 0 8px var(--c-primary); box-shadow: inset 10px 0 20px -10px var(--c-primary); }
         
         @keyframes fadeAlert { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+        @media (max-width: 480px) {
+          .sys-alert {
+            font-size: 0.65rem;
+            padding: 10px;
+            letter-spacing: 0.08em;
+          }
+        }
+
+        /* ═══════════════════════════════════════════ */
+        /* MOBILE DECORATIVE ELEMENTS                 */
+        /* ═══════════════════════════════════════════ */
+        .mobile-corner-tl,
+        .mobile-corner-br {
+          display: none;
+        }
+        @media (max-width: 640px) {
+          .mobile-corner-tl,
+          .mobile-corner-br {
+            display: block;
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border-color: rgba(0, 255, 255, 0.15);
+            z-index: 5;
+            pointer-events: none;
+          }
+          .mobile-corner-tl {
+            top: 12px; left: 12px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+          }
+          .mobile-corner-br {
+            bottom: 12px; right: 12px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+          }
+        }
       `}} />
 
-      {/* CURSOR */}
+      {/* CURSOR — rendered always, hidden via CSS on touch devices */}
       <div className="cyber-cursor-dot"></div>
       <div className="cyber-cursor-outline"></div>
 
@@ -482,19 +731,23 @@ export default function LoginPage() {
       <div className="radial-glow"></div>
       <div className="crt-lines"></div>
 
+      {/* Mobile decorative corners */}
+      <div className="mobile-corner-tl"></div>
+      <div className="mobile-corner-br"></div>
+
       {/* INTERFACE */}
-      <div className="auth-widget w-full max-w-md p-8 flex flex-col gap-6">
+      <div className="auth-widget">
         
-        <div className="text-center">
-          <h1 className="txt-orbitron text-3xl font-black tracking-widest text-glitch mb-2">SYS.AUTH</h1>
-          <p className="txt-sharetech text-sm text-cyan-500 opacity-80 tracking-widest">&gt; IDENTIFICATION_REQUIRED_</p>
+        <div style={{ textAlign: 'center' }}>
+          <h1 className="page-title text-glitch">SYS.AUTH</h1>
+          <p className="page-subtitle">&gt; IDENTIFICATION_REQUIRED_</p>
         </div>
 
         {/* TABS */}
-        <div className="flex justify-center gap-8 border-b border-cyan-900/50 pb-2">
+        <div className="tab-bar">
           <button 
             type="button"
-            className={`cyber-tab px-4 py-2 text-sm tracking-widest ${activeTab === "login" ? "active" : "text-gray-500"}`}
+            className={`cyber-tab ${activeTab === "login" ? "active" : ""}`}
             onClick={() => handleTabSwitch("login")}
             onMouseEnter={() => playSound("hover")}
           >
@@ -502,7 +755,7 @@ export default function LoginPage() {
           </button>
           <button 
             type="button"
-            className={`cyber-tab px-4 py-2 text-sm tracking-widest ${activeTab === "register" ? "active" : "text-gray-500"}`}
+            className={`cyber-tab ${activeTab === "register" ? "active" : ""}`}
             onClick={() => handleTabSwitch("register")}
             onMouseEnter={() => playSound("hover")}
           >
@@ -510,7 +763,7 @@ export default function LoginPage() {
           </button>
           <button 
             type="button"
-            className={`cyber-tab px-4 py-2 text-sm tracking-widest ${activeTab === "forgot-password" ? "active" : "text-gray-500"}`}
+            className={`cyber-tab ${activeTab === "forgot-password" ? "active" : ""}`}
             onClick={() => handleTabSwitch("forgot-password")}
             onMouseEnter={() => playSound("hover")}
           >
@@ -520,45 +773,45 @@ export default function LoginPage() {
 
         {/* STEP INDICATOR for recovery */}
         {activeTab === "forgot-password" && (
-          <div className="flex justify-center">
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div className="step-indicator">
               <div className={`step-dot ${recoveryStep === "email" ? "active" : (recoveryStep === "otp" ? "active" : "")}`}></div>
-              <span className={recoveryStep === "email" ? "text-cyan-400" : "text-cyan-600"}>EMAIL</span>
+              <span style={{ color: recoveryStep === "email" ? 'rgba(0,255,255,0.8)' : 'rgba(0,255,255,0.4)' }}>EMAIL</span>
               <div className={`step-line ${recoveryStep === "otp" ? "active" : ""}`}></div>
               <div className={`step-dot ${recoveryStep === "otp" ? "active" : ""}`}></div>
-              <span className={recoveryStep === "otp" ? "text-cyan-400" : ""}>OTP+KEY</span>
+              <span style={{ color: recoveryStep === "otp" ? 'rgba(0,255,255,0.8)' : 'rgba(0,255,255,0.4)' }}>OTP+KEY</span>
             </div>
           </div>
         )}
 
         {/* ALERT */}
         {alertMsg && (
-          <div className={`sys-alert p-3 text-xs tracking-widest txt-sharetech uppercase ${alertType === "error" ? "alert-error" : "alert-warning"}`}>
+          <div className={`sys-alert ${alertType === "error" ? "alert-error" : "alert-warning"}`}>
             [!] {alertMsg}
           </div>
         )}
 
         {/* FORMS */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 txt-sharetech">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px', fontFamily: "'Share Tech Mono', monospace" }}>
           
           {activeTab === "register" && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-cyan-400 tracking-widest">&gt; NEW_USER_ID</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label className="input-label">&gt; NEW_USER_ID</label>
               <input 
                 type="text" 
                 required 
                 value={newUserId}
                 onChange={handleInputChange(setNewUserId)}
-                className="cyber-input p-3 text-lg w-full" 
+                className="cyber-input" 
                 placeholder="operator_01"
               />
             </div>
           )}
 
-          {/* EMAIL field - shown for login, register, and forgot-password step 1 */}
+          {/* EMAIL field */}
           {(activeTab !== "forgot-password" || recoveryStep === "email") && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-cyan-400 tracking-widest">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label className="input-label">
                 &gt; {activeTab === "login" ? "USER_ID // EMAIL" : "EMAIL_ADDRESS"}
               </label>
               <input 
@@ -566,16 +819,17 @@ export default function LoginPage() {
                 required 
                 value={email}
                 onChange={handleInputChange(setEmail)}
-                className="cyber-input p-3 text-lg w-full" 
+                className="cyber-input" 
                 placeholder="operator@nightcity.sys"
+                autoComplete="email"
               />
             </div>
           )}
 
-          {/* PASSWORD field - shown for login and register only */}
+          {/* PASSWORD field */}
           {activeTab !== "forgot-password" && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-cyan-400 tracking-widest">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label className="input-label">
                 &gt; {activeTab === "login" ? "PASSWORD // KEY" : "SET_PASSWORD"}
               </label>
               <input 
@@ -583,19 +837,22 @@ export default function LoginPage() {
                 required 
                 value={password}
                 onChange={handleInputChange(setPassword)}
-                className="cyber-input p-3 text-lg w-full" 
+                className="cyber-input" 
                 placeholder="••••••••"
+                autoComplete={activeTab === "login" ? "current-password" : "new-password"}
               />
             </div>
           )}
 
-          {/* OTP + NEW PASSWORD - shown for forgot-password step 2 */}
+          {/* OTP + NEW PASSWORD */}
           {activeTab === "forgot-password" && recoveryStep === "otp" && (
             <>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-cyan-400 tracking-widest">&gt; VERIFICATION_CODE // 6_DIGIT</label>
-                <p className="text-xs text-gray-500 tracking-wider mb-1">OTP dikirim ke: {email}</p>
-                <div className="flex justify-center gap-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="input-label">&gt; VERIFICATION_CODE // 6_DIGIT</label>
+                <p style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                  OTP dikirim ke: {email}
+                </p>
+                <div className="otp-container">
                   {otp.map((digit, i) => (
                     <input
                       key={i}
@@ -607,21 +864,22 @@ export default function LoginPage() {
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
                       className={`otp-input ${digit ? "filled" : ""}`}
-                      style={{ cursor: 'none' }}
+                      autoComplete="one-time-code"
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-cyan-400 tracking-widest">&gt; NEW_PASSWORD</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label className="input-label">&gt; NEW_PASSWORD</label>
                 <input 
                   type="password" 
                   required 
                   value={newPassword}
                   onChange={handleInputChange(setNewPassword)}
-                  className="cyber-input p-3 text-lg w-full" 
+                  className="cyber-input" 
                   placeholder="••••••••"
+                  autoComplete="new-password"
                 />
               </div>
             </>
@@ -631,7 +889,7 @@ export default function LoginPage() {
             type="submit" 
             disabled={loading}
             onMouseEnter={() => playSound("hover")}
-            className="cyber-btn txt-orbitron w-full p-4 mt-2 text-lg font-bold tracking-widest"
+            className="cyber-btn"
           >
             {loading 
               ? "PROCESSING..." 
@@ -657,7 +915,7 @@ export default function LoginPage() {
                 setAlertMsg("");
               }}
               onMouseEnter={() => playSound("hover")}
-              className="cyber-btn-secondary txt-orbitron w-full p-3 text-sm tracking-widest"
+              className="cyber-btn-secondary"
             >
               &lt; KEMBALI
             </button>
