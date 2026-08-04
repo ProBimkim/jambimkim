@@ -8,7 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   // State
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertType, setAlertType] = useState<"error" | "warning">("error");
@@ -123,7 +123,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleTabSwitch = (tab: "login" | "register") => {
+  const handleTabSwitch = (tab: "login" | "register" | "forgot-password") => {
     playSound("click");
     setActiveTab(tab);
     setAlertMsg("");
@@ -146,14 +146,33 @@ export default function LoginPage() {
     try {
       if (activeTab === "login") {
         const res = await authClient.signIn.email({ email, password });
-        if (res.error) throw new Error(res.error.message || "NETWORK_ERR // INVALID_CREDENTIALS");
-      } else {
+        if (res.error) {
+          if (res.error.message?.includes("email_not_verified")) {
+             throw new Error("EMAIL_NOT_VERIFIED // CHECK_INBOX");
+          }
+          throw new Error(res.error.message || "NETWORK_ERR // INVALID_CREDENTIALS");
+        }
+      } else if (activeTab === "register") {
         const res = await authClient.signUp.email({ 
           email, 
           password, 
           name: newUserId || email.split("@")[0] 
         });
         if (res.error) throw new Error(res.error.message || "DB_ERR // REGISTRATION_FAILED");
+        setAlertType("warning");
+        setAlertMsg("REGISTRATION_SUCCESS // CHECK_EMAIL_TO_VERIFY");
+        setLoading(false);
+        return; // Don't redirect yet
+      } else if (activeTab === "forgot-password") {
+        const res = await authClient.forgetPassword({ 
+          email, 
+          redirectTo: "/reset-password" 
+        });
+        if (res.error) throw new Error(res.error.message || "DB_ERR // REQUEST_FAILED");
+        setAlertType("warning");
+        setAlertMsg("RESET_LINK_SENT // CHECK_INBOX");
+        setLoading(false);
+        return;
       }
       
       // Success
@@ -358,6 +377,14 @@ export default function LoginPage() {
           >
             DAFTAR
           </button>
+          <button 
+            type="button"
+            className={`cyber-tab px-4 py-2 text-sm tracking-widest ${activeTab === "forgot-password" ? "active" : "text-gray-500"}`}
+            onClick={() => handleTabSwitch("forgot-password")}
+            onMouseEnter={() => playSound("hover")}
+          >
+            RECOVERY
+          </button>
         </div>
 
         {/* ALERT */}
@@ -398,19 +425,21 @@ export default function LoginPage() {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-cyan-400 tracking-widest">
-              &gt; {activeTab === "login" ? "PASSWORD // KEY" : "SET_PASSWORD"}
-            </label>
-            <input 
-              type="password" 
-              required 
-              value={password}
-              onChange={handleInputChange(setPassword)}
-              className="cyber-input p-3 text-lg w-full" 
-              placeholder="••••••••"
-            />
-          </div>
+          {activeTab !== "forgot-password" && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-cyan-400 tracking-widest">
+                &gt; {activeTab === "login" ? "PASSWORD // KEY" : "SET_PASSWORD"}
+              </label>
+              <input 
+                type="password" 
+                required 
+                value={password}
+                onChange={handleInputChange(setPassword)}
+                className="cyber-input p-3 text-lg w-full" 
+                placeholder="••••••••"
+              />
+            </div>
+          )}
 
           <button 
             type="submit" 
@@ -418,7 +447,7 @@ export default function LoginPage() {
             onMouseEnter={() => playSound("hover")}
             className="cyber-btn txt-orbitron w-full p-4 mt-2 text-lg font-bold tracking-widest"
           >
-            {loading ? "PROCESSING..." : (activeTab === "login" ? "INISIASI LINK" : "DAFTAR SISTEM")}
+            {loading ? "PROCESSING..." : (activeTab === "login" ? "INISIASI LINK" : activeTab === "register" ? "DAFTAR SISTEM" : "KIRIM RESET LINK")}
           </button>
 
         </form>
