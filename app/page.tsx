@@ -1,11 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 export default function Home() {
   const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await authClient.signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout failed", error);
+      setIsLoggingOut(false);
+    }
+  };
 
   // DOM refs for audio and glitch
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -72,7 +84,7 @@ export default function Home() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime); 
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.04);
       gain.gain.setValueAtTime(0.05, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
@@ -115,7 +127,7 @@ export default function Home() {
       let offset = -date.getTimezoneOffset() / 60;
       let sign = offset >= 0 ? '+' : '';
       const tzBadge = document.getElementById('timezone-badge');
-      if(tzBadge) tzBadge.innerText = `TZ: // GMT${sign}${offset}`;
+      if (tzBadge) tzBadge.innerText = `TZ: // GMT${sign}${offset}`;
     };
 
     let lastSecond = -1;
@@ -127,16 +139,16 @@ export default function Home() {
       const secs = document.getElementById('seconds');
       const dateEl = document.getElementById('date');
 
-      if(hrs) hrs.innerText = now.getHours().toString().padStart(2, '0');
-      if(mins) mins.innerText = now.getMinutes().toString().padStart(2, '0');
-      if(secs) secs.innerText = currentSec.toString().padStart(2, '0');
+      if (hrs) hrs.innerText = now.getHours().toString().padStart(2, '0');
+      if (mins) mins.innerText = now.getMinutes().toString().padStart(2, '0');
+      if (secs) secs.innerText = currentSec.toString().padStart(2, '0');
 
       if (currentSec !== lastSecond) {
-          playTickSound();
-          lastSecond = currentSec;
+        playTickSound();
+        lastSecond = currentSec;
       }
 
-      if(dateEl) dateEl.innerText = `SYS.DATE: // ${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}`;
+      if (dateEl) dateEl.innerText = `SYS.DATE: // ${now.getFullYear()}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getDate().toString().padStart(2, '0')}`;
     };
 
     setTimezone();
@@ -146,14 +158,14 @@ export default function Home() {
     // Glitch logic
     const glitchElement = document.getElementById('glitch-target');
     const glitchInt = setInterval(() => {
-        if (Math.random() > 0.6 && glitchElement) {
-            glitchElement.classList.remove('glitch-effect');
-            void glitchElement.offsetWidth; 
-            setTimeout(() => {
-                glitchElement.classList.add('glitch-effect');
-                playGlitchSound();
-            }, 40);
-        }
+      if (Math.random() > 0.6 && glitchElement) {
+        glitchElement.classList.remove('glitch-effect');
+        void glitchElement.offsetWidth;
+        setTimeout(() => {
+          glitchElement.classList.add('glitch-effect');
+          playGlitchSound();
+        }, 40);
+      }
     }, 3000);
 
     return () => {
@@ -168,7 +180,8 @@ export default function Home() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&family=Share+Tech+Mono&display=swap');
         
         :root { --neon-base: #0ff; }
@@ -306,36 +319,54 @@ export default function Home() {
       `}} />
 
       <div id="cyber-scene">
-          <div className="cursor-dot"></div>
-          <div className="cursor-outline"></div>
+        <div className="cursor-dot"></div>
+        <div className="cursor-outline"></div>
 
-          <div className="brick-texture"></div>
-          <div className="brick-illumination"></div>
-          <div className="brick-glow-core"></div>
-          
-          <div className="floor-area"></div>
+        <div className="brick-texture"></div>
+        <div className="brick-illumination"></div>
+        <div className="brick-glow-core"></div>
 
-          <div className="clock-wrapper">
-              <div className="cyber-frame glitch-effect" id="glitch-target">
-                  <div className="scan-bar"></div>
-                  
-                  <div className="clock-display">
-                      <span id="hours">00</span>
-                      <span className="colon">:</span>
-                      <span id="minutes">00</span>
-                      <span className="colon">:</span>
-                      <span id="seconds">00</span>
-                  </div>
+        <div className="floor-area"></div>
 
-                  <div className="system-info">
-                      <div className="date-display" id="date">SYS.DATE: // 2077.01.01</div>
-                      <div className="sys-badge" id="timezone-badge">TZ: // CALC...</div>
-                  </div>
-              </div>
+        <div className="clock-wrapper">
+          <div className="cyber-frame glitch-effect" id="glitch-target">
+            <div className="scan-bar"></div>
+
+            <div className="clock-display">
+              <span id="hours">00</span>
+              <span className="colon">:</span>
+              <span id="minutes">00</span>
+              <span className="colon">:</span>
+              <span id="seconds">00</span>
+            </div>
+
+            <div className="system-info">
+              <div className="date-display" id="date">SYS.DATE: // 2077.01.01</div>
+              <div className="sys-badge" id="timezone-badge">TZ: // CALC...</div>
+            </div>
           </div>
+        </div>
 
-          <div className="water-ripples"></div>
-          <div className="crt-overlay"></div>
+        <div className="water-ripples"></div>
+        <div className="crt-overlay"></div>
+        <button 
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            zIndex: 100,
+            background: 'transparent',
+            border: '1px solid var(--neon-base)',
+            color: 'var(--neon-base)',
+            padding: '8px 16px',
+            fontFamily: '"Share Tech Mono", monospace',
+            cursor: 'none'
+          }}
+        >
+          {isLoggingOut ? 'DISCONNECTING...' : 'LOG OUT'}
+        </button>
       </div>
     </>
   );
